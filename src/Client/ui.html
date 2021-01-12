@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>HTML Forms</h2>
+
+  <label for="fname">Vaccine ID:</label><br>
+  <input type="text" id="vacId" name="vacId"><br>
+  
+  <script>"/home/amitk/.cache/typescript/4.1/node_modules/@types/node/crypto.d.ts"</script>
+  <script>
+
+
+
+      // helper function to generate addresses based on sha512 hash function 
+function getAddress(key, length = 64) {
+        return createHash('sha512').update(key).digest('hex').slice(0, length)
+}
+// helper function to get the address of a vaccine in the vaccine namespace
+function getAssetAddress(name) { return (PREFIX + getAddress(name, 58)) }
+
+// gets the address of the main properties
+function getMainPropsAddress(vacId) {
+    return getAssetAddress(vacId) + '00' + '0000' // zeros split for clarity
+}
+
+
+
+async function getVaccineState(address) {
+    //   if (batchListBytes == null) {
+        try {
+          var geturl = "http://localhost:8008/state/" + address; //endpoint used to retrieve data from an address in Sawtooth blockchain
+          console.log("Getting from: " + geturl);
+          let response = await fetch(geturl, {
+            method: "GET",
+          });
+          let responseJson = await response.json();
+          var data = responseJson.data;
+          var newdata = Buffer.from(data, "base64").toString();
+          return newdata;
+        } catch (error) {
+          console.error(error);
+        }
+      } 
+    //   else {
+    //     try {
+    //       let resp = await fetch("http://localhost:8008/batches", {
+    //         //endpoint to which we write data in a Sawtooth blockchain
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/octet-stream" },
+    //         body: batchListBytes,
+    //       });
+    //       console.log("response--", resp);
+    //     } catch (error) {
+    //       console.log("error in fetch", error);
+    //     }
+    //   }
+;
+    function myFunction(){
+        const FAMILY = "vaccine";
+        const PREFIX = getAddress(FAMILY, 6)
+        alert("hi")
+        var vacId = document.getElementById("vacId").value
+        alert(vacId)
+        var vacAddressInState = getMainPropsAddress(vacId);
+        alert(vacAddressInState)
+        alert(getVaccineState(vacAddressInState))
+    }</script>
+
+
+  <button onclick="myFunction()">Click me</button> 
+
+</body>
+</html>
+
