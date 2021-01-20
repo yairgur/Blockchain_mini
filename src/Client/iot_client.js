@@ -19,40 +19,21 @@ const getVacAddress = name => PREFIX + getAddress(name, 58)
 
 const PREFIX = getAddress(FAMILY, 6)
 
-// function makeVacId() {
-//   var result           = '';
-//   var characters       = '0123456789';
-//   var charactersLength = characters.length;
-//   for ( var i = 0; i < 20; i++ ) {
-//      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-//   }
-//   return result;
-// }
+function getRandom20LenString() {
+  var result           = '';
+  var characters       = '0123456789';
+  var charactersLength = characters.length;
+  for ( var i = 0; i < 20; i++ ) {
+     result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
 
-// const myVacId = makeVacId();
+const myVacId = getRandom20LenString();
 
-// const createTransaction = (payload,vacID) => {
-//   console.log("hell of a transaction")
-//   const encoder = new TextEncoder("utf8");
-//   const payloadBytes = encoder.encode(payload);
-//   const transactionHeaderBytes = protobuf.TransactionHeader.encode({
-//     familyName: FAMILY,
-//     familyVersion: "1.0",
-//     inputs: [getVacAddress(vacID)],
-//     outputs: [getVacAddress(vacID)],
-//     signerPublicKey: signer.getPublicKey().asHex(),
-//     batcherPublicKey: signer.getPublicKey().asHex(),
-//     dependencies: [],
-//     nonce: "" + Math.random(),
-//     payload_encoding: "utf8",
-//     payloadSha512: crypto
-//       .createHash("sha512")
-//       .update(payloadBytes)
-//       .digest("hex"),
-//   }).finish();
+const tempThresh =  70;
 
 const createTransaction = (payload,vacId) => {
-  // const [gameName, action, space] = payload.split(",");
   const encoder = new TextEncoder("utf8");
   const payloadBytes = encoder.encode(payload);
   const transactionHeaderBytes = protobuf.TransactionHeader.encode({
@@ -61,15 +42,7 @@ const createTransaction = (payload,vacId) => {
     inputs: [getVacAddress(vacId)],
     outputs: [getVacAddress(vacId)],
     signerPublicKey: signer.getPublicKey().asHex(),
-    // In this example, we're signing the batch with the same private key,
-    // but the batch can be signed by another party, in which case, the
-    // public key will need to be associated with that key.
     batcherPublicKey: signer.getPublicKey().asHex(),
-    // In this example, there are no dependencies.  This list should include
-    // an previous transaction header signatures that must be applied for
-    // this transaction to successfully commit.
-    // For example,
-    // dependencies: ['540a6803971d1880ec73a96cb97815a95d374cbad5d865925e5aa0432fcf1931539afe10310c122c5eaae15df61236079abbf4f258889359c4d175516934484a'],
     dependencies: [],
     nonce: "" + Math.random(),
     payload_encoding: "utf8",
@@ -106,21 +79,6 @@ const createBatch = (transactions) => {
 
 
 async function sendMsg(msg) {
-//   if (batchListBytes == null) {
-//     try {
-//       var geturl = "http://localhost:8008/state/" + this.address; //endpoint used to retrieve data from an address in Sawtooth blockchain
-//       console.log("Getting from: " + geturl);
-//       let response = await fetch(geturl, {
-//         method: "GET",
-//       });
-//       let responseJson = await response.json();
-//       var data = responseJson.data;
-//       var newdata = Buffer.from(data, "base64").toString();
-//       return newdata;
-//     } catch (error) {
-//       console.error(error);
-//     }
-  //} else {
     try {
       let resp = await fetch("http://localhost:8008/batches", {
         //endpoint to which we write data in a Sawtooth blockchain
@@ -135,6 +93,23 @@ async function sendMsg(msg) {
   }
 ;
 
+const getCurrentTemp = () => {
+  var tempSign = Math.pow(-1,Math.floor(Math.random()*2));
+  return Math.floor(Math.random()*tempThresh)*tempSign;
+}
+
+const getCurrentLoc = () => {
+    var firstPartOfLocationString = getRandom20LenString();
+    var secondPartOfLocationString = getRandom20LenString();
+    return firstPartOfLocationString + "-" + secondPartOfLocationString;
+}
+
+const getCurrTime = () => {
+  const hours = (Math.floor(Math.random()*23)).toString(10)
+  const minutes = (Math.floor(Math.random()*59)).toString(10)
+  return hours + ":" + minutes;
+}
+
 const createMsg = (vacId,jsonRequest) => {
   var requestString = JSON.stringify(jsonRequest);
   var requestBatch = createBatch([createTransaction(requestString,vacId)]);
@@ -146,28 +121,31 @@ const createMsg = (vacId,jsonRequest) => {
 } 
 
 function sendCreateMsg() {
-  var createMessage = createMsg("1213123123",{action:"create",vacId:"1213123123",manufacturer:"astra-zeneca",price:0,manufacturingDate:"19.11",manufacturingLoc:"Russia",expiringDate:"8.1"})
+  var createMessage = createMsg(myVacId,{action:"create",vacId:myVacId,manufacturer:"astra-zeneca",price:0,manufacturingDate:"19.11",manufacturingLoc:"Russia",expiringDate:"8.1"})
   sendMsg(createMessage);
 }
 
 
-// function sendTransferMsg() {
-//   var setTransferMessage = createMsg(myVacId,{action:"transfer",vacId:myVacId});
-//   sendMsg(setTransferMessage)
-// }
+function sendTransferMsg() {
+  var setTransferMessage = createMsg(myVacId,{action:"transfer",vacId:myVacId});
+  sendMsg(setTransferMessage)
+}
 
-// function sendSample() {
-//   var sampleMsg = createMsg(myVacId,{action:"update-temp-loc",vacId:myVacId,temp:"14",loc:"1213123123",time:"123123"});
-//   sendMsg(sampleMsg)
-//   setTimeout(sendSample,10000)
-//  }
+function sendSample() {
+  var currTemp = getCurrentTemp();
+  var currLoc = getCurrentLoc();
+  var currTime = getCurrTime();
+  var sampleMsg = createMsg(myVacId,{action:"update-temp-loc",vacId:myVacId,temp:currTemp,loc:currLoc,time:currTime});
+  sendMsg(sampleMsg)
+  setTimeout(sendSample,20000)
+ }
 
 
 sendCreateMsg();
 
-// setTimeout(sendTransferMsg,5000)
+setTimeout(sendTransferMsg,5000)
 
-// setTimeout(sendSample,5000)
+setTimeout(sendSample,5000)
 
 
 
