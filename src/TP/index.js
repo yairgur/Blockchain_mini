@@ -1,5 +1,4 @@
 
-
 'use strict'
 
 const { TransactionProcessor } = require('sawtooth-sdk/processor')

@@ -99,9 +99,11 @@ const getCurrentTemp = () => {
 }
 
 const getCurrentLoc = () => {
-    var firstPartOfLocationString = getRandom20LenString();
-    var secondPartOfLocationString = getRandom20LenString();
-    return firstPartOfLocationString + "-" + secondPartOfLocationString;
+    var firstCoSign = Math.pow(-1,Math.floor(Math.random()*2));
+    var secondCoSign = Math.pow(-1,Math.floor(Math.random()*2));
+    var firstPartOfLocationString = Math.floor(Math.random()*50)*firstCoSign;
+    var secondPartOfLocationString = Math.floor(Math.random()*50)*secondCoSign;
+    return firstPartOfLocationString.toString(10) + "^" + secondPartOfLocationString.toString(10);
 }
 
 const getCurrTime = () => {

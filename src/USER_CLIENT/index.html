@@ -1,0 +1,47 @@
+<html><body>
+  <div id="mapdiv"></div>
+  <script src="http://www.openlayers.org/api/OpenLayers.js"></script>
+  <script>
+
+
+    function createAMarker(sample){
+      console.log("my sample: " + JSON.stringify(sample))
+      var firstCo = parseInt(sample['location'].split("^")[0])
+      var secondCo = parseInt(sample['location'].split("^")[1])
+      console.log("firstCo: " + firstCo + ", secondCo: " + secondCo)
+      var lonLat = new OpenLayers.LonLat( firstCo, secondCo )
+          .transform(
+            new OpenLayers.Projection("EPSG:4326"), // transform from WGS 1984
+            map.getProjectionObject() // to Spherical Mercator Projection
+          );
+      var marker = new OpenLayers.Marker(lonLat);
+      marker.events.register("click", marker, function(e){
+            console.log("temperature recorded: " + sample['temp'])
+            console.log("time:" + sample['time'])
+         });
+      return marker;
+    }
+
+    var jsonFromServer = JSON.parse(decodeURIComponent(window.location.search).split("=")[1])
+    console.log("got to the other script");
+    console.log(jsonFromServer);
+
+    map = new OpenLayers.Map("mapdiv");
+    map.addLayer(new OpenLayers.Layer.OSM());
+
+   
+          
+    var zoom=16;
+
+    var markers = new OpenLayers.Layer.Markers( "Markers" );
+    
+    map.addLayer(markers);
+    for (var i = 0; i < jsonFromServer['samples'].length; i++ ){
+      markers.addMarker(createAMarker(JSON.parse(jsonFromServer['samples'][i])));
+    }
+
+    
+    // map.setCenter (lonLat, zoom);
+  </script>
+</body></html>
+

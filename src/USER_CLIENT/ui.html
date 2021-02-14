@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+  
+  <body>
+  
+  <input type=text id="vacId">
+  <input type="button" id="subButton">
+  
+        
+
+  <script>
+
+async function getVaccineState(address) {
+    alert("hello")
+    var geturl = "http://localhost:8000/api/state/" + address; 
+    console.log("Getting from: " + geturl);
+    return fetch( geturl, {
+      method: "GET",
+      }).then(blob => blob.json()).then(x=>(atob(x.data)))
+      .catch(e => {
+      alert(e);
+      return e;
+  });
+       
+}
+
+
+async function submitButtonCallback(){
+    var vacAddressInState = document.getElementById("vacId").value;
+    alert(vacAddressInState)
+    let responseJson = await getVaccineState(vacAddressInState);
+    var queryString = "?para1=" + responseJson
+    window.location.href="/home/amitk/sawtooth/MiniProj/Blockchain_mini/src/USER_CLIENT/index.html" + queryString
+    }
+    
+    document.getElementById("subButton").addEventListener("click", submitButtonCallback);
+
+
+</script>
+    
+
+
+</body>
+</html>
+

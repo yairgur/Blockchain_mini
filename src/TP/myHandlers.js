@@ -8,40 +8,19 @@ const { TextEncoder, TextDecoder } = require("text-encoding/lib/encoding");
 const decoder = new TextDecoder("utf8");
 const timeout = 300
 
-// helper function to generate addresses based on sha512 hash function 
-const getAddress = (key, length = 64) => {
-        
-        return createHash('sha512').update(key).digest('hex').slice(0, length)
-    }
-
-// helper function to get the address of a vaccine in the vaccine namespace
-const getAssetAddress = name => PREFIX + getAddress(name, 58)
-
-// gets the address of the main properties
-const getMainPropsAddress = (vacId) => {
-    return getAssetAddress(vacId) + '00' + '0000' // zeros split for clarity
-}
-
-// gets the address if the temp array
-const getTempArrayAddress = (assetName, index) => {
-    return getAssetAddress(assetName) + '01' + index
-}
-
-// function to add leading zero(s) to nextIndex
-const padIndex = (index) => {
-    let paddedIndex = index + "";
-    while (paddedIndex.length < 4)
-        paddedIndex = "0" + paddedIndex
-    return paddedIndex
-}
 
 
-// transaction family is defined by a name
+const getAddress = (key, length = 64) => createHash('sha512').update(key).digest('hex').slice(0, length);
+
+
+const getVaccineAddress = name => ADDRESS_PREFIX + getAddress(name, 58);
+
+const getCompleteVaccineAddress = (vacId) => getVaccineAddress(vacId) + '00' + '0000'; // zeros split for clarity
+
 const FAMILY = 'vaccine'
-    // address namespace is 3 bytes, created as first 6 hex characters of hash of family name
-const PREFIX = getAddress(FAMILY, 6)
 
-// helper functions to encode and decode binary data
+const ADDRESS_PREFIX = getAddress(FAMILY, 6)
+
 const encode = obj => Buffer.from(JSON.stringify(obj, Object.keys(obj).sort()))
 const decode = buf => JSON.parse(buf.toString())
 
@@ -56,34 +35,33 @@ const verifyJsonFields = (jsonPayload,fields) => {
 
 
 const createVac = (payload,state,signer) => {
+    
     verifyJsonFields(payload,["vacId","manufacturer","price","manufacturingDate","manufacturingLoc","expiringDate"])
   
-    const mainPropsAddress = getMainPropsAddress(payload.vacId)
-    console.error(mainPropsAddress)
+    const vacStateAddress = getCompleteVaccineAddress(payload.vacId)
+    
+    console.log(vacStateAddress)
 
-    return state.getState([mainPropsAddress],timeout)
-        .then(entries => {
-            // check if an asset already exists on the address
-            const entry = entries[mainPropsAddress] // there is only one entry because only one address was queried
+    return state.getState([vacStateAddress],timeout).then(entries => {
+        const entry = entries[vacStateAddress] 
 
-            if (entry && entry.length > 0) {
-                throw new InvalidTransaction('vacId is already in use')
-            }
-            // new asset is added to the state
-            return state.setState({
-                [mainPropsAddress]: encode({
-                    vacId: payload.vacId,
-                    signer,
-                    manufacturer: payload.manufacturer,
-                    price: payload.price,
-                    manufacturingDate: payload.manufacturingDate,
-                    manufacturingLoc: payload.manufacturingLoc,
-                    expiredDate: payload.expiredDate,
-                    isInTransfer: false,
-                    samples: [],
-                    ruined: false,
-                    nextIndex: 1
-                }, )
+        if (entry && entry.length > 0) {
+            throw new InvalidTransaction('vacId is already in use')
+        }
+            
+        return state.setState({[vacStateAddress]: encode({
+                vacId: payload.vacId,
+                signer,
+                manufacturer: payload.manufacturer,
+                price: payload.price,
+                manufacturingDate: payload.manufacturingDate,
+                manufacturingLoc: payload.manufacturingLoc,
+                expiredDate: payload.expiredDate,
+                isInTransfer: false,
+                samples: [],
+                ruined: false,
+                nextIndex: 1
+            }, )
             },timeout)
         })
 }
@@ -93,58 +71,53 @@ const createVac = (payload,state,signer) => {
 const setTransfer = (payload,state,signer) => {
     
     verifyJsonFields(payload,["vacId"])
-    const mainPropsAddress = getMainPropsAddress(payload.vacId)
+    const vacStateAddress = getCompleteVaccineAddress(payload.vacId)
 
-    return state.getState([mainPropsAddress],timeout)
-        .then(entries => {
+    return state.getState([vacStateAddress],timeout).then(entries => {
             
-            const entry = entries[mainPropsAddress] 
-            if (!(entry && entry.length > 0)) {
-                throw new InvalidTransaction('vaccine not found')
-            }
+        const entry = entries[vacStateAddress] 
+        
+        if (!(entry && entry.length > 0)) {
+            throw new InvalidTransaction('vaccine not found')
+        }
 
-            let vacState = decode(entry)
+        let vacState = decode(entry)
 
-            vacState.isInTransfer = true
+        vacState.isInTransfer = true
 
-            return state.setState({
-                [mainPropsAddress]: encode(vacState)
-            },timeout)
-        })
+        return state.setState({[vacStateAddress]: encode(vacState)},timeout)
+    })
 }
 
 
 const addTempAndLoc = (payload,state,signer) => {
 
-        verifyJsonFields(payload,["vacId","temp","loc","time"])
+    verifyJsonFields(payload,["vacId","temp","loc","time"])
 
-        const mainPropsAddress = getMainPropsAddress(payload.vacId)
+    const vacStateAddress = getCompleteVaccineAddress(payload.vacId)
 
-        return state.getState([mainPropsAddress])
-            .then(entries => {
+    return state.getState([vacStateAddress]).then(entries => {
                 
-                const entry = entries[mainPropsAddress] 
-                if (!(entry && entry.length > 0)) {
-                    throw new InvalidTransaction('vaccine not found')
-                }
+        const entry = entries[vacStateAddress]
 
-                let vacState = decode(entry)
+        if (!(entry && entry.length > 0)) {
+            throw new InvalidTransaction('vaccine not found')
+        }
 
-                vacState.samples.push(JSON.stringify({ location: payload.loc, temp: payload.temp, time: payload.time }))
+        let vacState = decode(entry)
+
+        vacState.samples.push(JSON.stringify({ location: payload.loc, temp: payload.temp, time: payload.time }))
                     
-                vacState.nextIndex += 1
+        vacState.nextIndex += 1
                     
-                // check if temp exceeds spoiled threshold
-                if (payload.temp > -70 || payload.temp < -200) {
-                    vacState.ruined = true
-                    console.log("vaccine is ruined by temperature")
-                }
-                //new temp is added to state and asset main properties saved
-                return state.setState({
-                    [mainPropsAddress]: encode(vacState)
-                },timeout)
-            })
-    }
+        if (payload.temp > -70 || payload.temp < -200) {
+            vacState.ruined = true
+            console.log("vaccine is ruined by temperature")
+        }
+
+        return state.setState({[vacStateAddress]: encode(vacState)},timeout)
+        })
+}
     
 
 
@@ -170,7 +143,7 @@ const parsePayloadFromTransaction = (payloadBytes) => {
 class VacHandler extends TransactionHandler {
     constructor() {
         console.log('VacHandler init.')
-        super(FAMILY, ["1.0"], [PREFIX]) 
+        super(FAMILY, ["1.0"], [ADDRESS_PREFIX]) 
     }
 
     apply(vacTranx, state) { 
